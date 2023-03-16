@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">CountriesApp</string>
+    <string name="cd_network_error_logo">network_error_logo</string>
+    <string name="retry_btn_text">retry</string>
+</resources>
