@@ -6,12 +6,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bebooo43.countriesapp.models.CountryUiModel
 import com.bebooo43.countriesapp.repo.CountriesRepo
+import com.bebooo43.countriesapp.repo.remote.ResultWrapper
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import retrofit2.HttpException
-import java.io.IOException
 
 class MainViewModel(
     private val repo: CountriesRepo,
@@ -26,34 +24,23 @@ class MainViewModel(
         }
     }
 
-    private val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
-        val message = when (throwable) {
-            is IOException -> "Network error"
-            is HttpException -> {
-                "${throwable.code()}, ${throwable.message()}"
-            }
-            else -> {
-                throwable.message?: "Something went wrong"
-            }
-        }
-        showError(message)
-    }
-
     init {
         fetchData()
     }
 
-
     private fun fetchData() {
-            viewModelScope.launch(coroutineDispatcher + exceptionHandler) {
-                val result = repo.getAllCountries()
-                if (result.isSuccessful) {
-                    val uiModels = result.body()?.map { it.toUiModel() }?: arrayListOf()
+        viewModelScope.launch(coroutineDispatcher) {
+            when (val result = repo.getAllCountries()) {
+                is ResultWrapper.NetworkError -> showError("Network error")
+                is ResultWrapper.GenericError -> showError("${result.code}, ${result.errorMessage}")
+                is ResultWrapper.Success -> if (result.value.isSuccessful){
+                    val uiModels = result.value.body()?.map { it.toUiModel() } ?: arrayListOf()
                     countriesUiList.postValue(uiModels)
                 } else {
-                    showError("${result.errorBody()?.string()}")
+                    showError("${result.value.errorBody()?.string()}")
                 }
             }
+        }
     }
 
     private fun showError(message: String) {
@@ -61,7 +48,7 @@ class MainViewModel(
         countriesUiList.postValue(arrayListOf())
     }
 
-    fun onRetryClick(){
+    fun onRetryClick() {
         errorMessage.postValue("")
         fetchData()
     }
